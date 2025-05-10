@@ -8,11 +8,7 @@ on:
         required: true
         default: "14"
         type: choice
-        options:
-          - "10"
-          - "12"
-          - "14"
-          - "16"
+        options: ["10", "12", "14", "16"]
 
 jobs:
   tag-and-release:
@@ -26,8 +22,7 @@ jobs:
 
       - name: Set Tag Name
         id: settag
-        run: |
-          echo "tag_name=v${{ inputs.pg_version }}" >> $GITHUB_OUTPUT
+        run: echo "tag_name=v${{ inputs.pg_version }}" >> $GITHUB_OUTPUT
 
       - name: Create Git Tag
         run: |
@@ -47,7 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build for ${{ matrix.platform }}
     needs: tag-and-release
     runs-on: ubuntu-latest
     strategy:
@@ -66,16 +61,33 @@ jobs:
         run: |
           IFS='/' read -r OS ARCH <<< "${{ matrix.platform }}"
           EXT="tar.gz"
-          if [[ "$OS" == "windows" ]]; then
-            EXT="zip"
-          fi
+          if [[ "$OS" == "windows" ]]; then EXT="zip"; fi
           FILENAME="postgresql-${{ inputs.pg_version }}-${OS}-${ARCH}.${EXT}"
           echo "os=$OS" >> $GITHUB_OUTPUT
           echo "arch=$ARCH" >> $GITHUB_OUTPUT
           echo "ext=$EXT" >> $GITHUB_OUTPUT
           echo "filename=$FILENAME" >> $GITHUB_OUTPUT
 
-      - name: Download PostgreSQL binary
+      - name: Build from source (for ARM64)
+        if: matrix.platform == 'linux/arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison
+
+          mkdir -p build && cd build
+          curl -LO "https://ftp.postgresql.org/pub/source/v${{ inputs.pg_version }}/postgresql-${{ inputs.pg_version }}.tar.gz"
+          tar -xzf postgresql-${{ inputs.pg_version }}.tar.gz
+          cd postgresql-${{ inputs.pg_version }}
+          
+          ./configure --prefix=$PWD/install
+          make -j$(nproc)
+          make install
+          
+          mkdir -p ../../postgresql
+          cp -r install/* ../../postgresql
+
+      - name: Download PostgreSQL binary (except ARM64)
+        if: matrix.platform != 'linux/arm64'
         run: |
           chmod +x ./scripts/download-postgresql.sh
           ./scripts/download-postgresql.sh "${{ inputs.pg_version }}" "${{ steps.parse.outputs.os }}" "${{ steps.parse.outputs.arch }}"

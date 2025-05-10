@@ -5,35 +5,23 @@ VERSION="$1"
 OS="$2"
 ARCH="$3"
 
-# Normalize
-PLATFORM=""
+FILENAME="postgresql-${VERSION}-${OS}-${ARCH}-binaries"
 EXT="tar.gz"
+[ "$OS" == "windows" ] && EXT="zip"
 
-if [[ "$OS" == "windows" ]]; then
-  EXT="zip"
-  case "$ARCH" in
-    x64) PLATFORM="windows-x64-binaries" ;;
-    *) echo "Unsupported Windows arch: $ARCH" && exit 1 ;;
-  esac
-else
-  case "$OS-$ARCH" in
-    linux-amd64) PLATFORM="linux-x64-binaries" ;;
-    linux-arm64) PLATFORM="linux-arm64-binaries" ;;
-    *) echo "Unsupported platform: $OS-$ARCH" && exit 1 ;;
-  esac
+URL="https://get.enterprisedb.com/postgresql/${FILENAME}.${EXT}"
+
+if [[ "$OS" == "linux" && "$ARCH" == "arm64" ]]; then
+  echo "ARM64 builds from source, skipping download."
+  exit 0
 fi
 
-URL="https://get.enterprisedb.com/postgresql/postgresql-${VERSION}-${PLATFORM}.${EXT}"
-
-echo "Downloading from $URL"
-
+echo "Downloading from $URL..."
+curl -fSL "$URL" -o "package.${EXT}"
 mkdir -p postgresql
 cd postgresql
-
-curl -LO "$URL"
-
 if [[ "$EXT" == "zip" ]]; then
-  unzip "postgresql-${VERSION}-${PLATFORM}.${EXT}"
+  unzip ../package.${EXT}
 else
-  tar -xf "postgresql-${VERSION}-${PLATFORM}.${EXT}"
+  tar -xf ../package.${EXT} --strip-components=1
 fi
