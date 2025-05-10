@@ -15,7 +15,7 @@ case "$VERSION" in
     ;;
 esac
 
-FILENAME="postgresql-${FULL}-windows-x64.exe"
+FILENAME="postgresql-${FULL}-windows-x64.zip"
 URL="https://get.enterprisedb.com/postgresql/${FILENAME}"
 
 # Create output directory if needed
