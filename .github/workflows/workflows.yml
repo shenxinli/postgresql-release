@@ -4,9 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "PostgreSQL major version (10, 12, 14, 16)"
+        description: "PostgreSQL major version"
         required: true
-        type: string
+        type: choice
+        options:
+          - "10"
+          - "12"
+          - "14"
+          - "16"
 
 jobs:
   build:
