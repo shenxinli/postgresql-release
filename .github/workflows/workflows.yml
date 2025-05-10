@@ -38,16 +38,19 @@ jobs:
           git tag -f postgresql-v${{ inputs.version }}
           git push origin postgresql-v${{ inputs.version }} --force
 
-      - name: Download or Build PostgreSQL (Linux)
-        if: startsWith(matrix.os_arch.os, 'linux')
-        shell: bash
+      - name: Download PostgreSQL Binary for Linux x86_64 (Version 10 only)
+        if: matrix.os_arch.os == 'linux' && matrix.os_arch.arch == 'amd64' && inputs.version == '10'
         run: |
           chmod +x ./scripts/download-postgresql-linux.sh
-          ./scripts/download-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
+          ./scripts/download-postgresql-linux.sh "${{ inputs.version }}" "amd64"
+          mv postgresql-linux-amd64/postgresql-*.tar.gz postgresql-${{ inputs.version }}-linux-amd64.tar.gz
 
-          # Rename to standard format
-          mv postgresql-linux-amd64/postgresql-*.tar.gz postgresql-${{ inputs.version }}-linux-amd64.tar.gz || true
-          mv postgresql-${{ inputs.version }}-linux-arm64.tar.gz postgresql-${{ inputs.version }}-linux-arm64.tar.gz || true
+      - name: Build PostgreSQL from Source (Linux)
+        if: matrix.os_arch.os == 'linux' && (inputs.version != '10')
+        run: |
+          chmod +x ./scripts/build-postgresql-linux.sh
+          ./scripts/build-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
+          mv postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz
 
       - name: Download PostgreSQL (Windows)
         if: matrix.os_arch.os == 'windows'
@@ -55,10 +58,7 @@ jobs:
         run: |
           chmod +x ./scripts/download-postgresql-windows.sh
           ./scripts/download-postgresql-windows.sh "${{ inputs.version }}"
-
-          # Rename to standard format
-          mv postgresql-windows-x64/postgresql-*.exe postgresql-${{ inputs.version }}-windows-amd64.zip || true
-          zip postgresql-${{ inputs.version }}-windows-amd64.zip postgresql-${{ inputs.version }}-windows-amd64.exe || true
+          zip postgresql-${{ inputs.version }}-windows-amd64.zip postgresql-${{ inputs.version }}-windows-amd64.exe
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
