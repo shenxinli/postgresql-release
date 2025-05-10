@@ -1,316 +1,99 @@
-name: Download or Build PostgreSQL
+name: PostgreSQL Multi-Platform Release
+
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: '选择PostgreSQL版本'
+      pg_version:
+        description: "PostgreSQL Version (10, 12, 14, 16)"
         required: true
+        default: "14"
         type: choice
         options:
-          - '10'
-          - '11'
-          - '12'
-          - '14'
-          - '16'
-      platforms:
-        description: '目标平台类型（用逗号分隔，可选值：linux/amd64,linux/arm64,windows/amd64）'
-        required: true
-        default: 'linux/amd64,linux/arm64,windows/amd64'
+          - "10"
+          - "12"
+          - "14"
+          - "16"
+
 jobs:
-  generate-release-info:
+  tag-and-release:
+    name: Create Git Tag and Release
     runs-on: ubuntu-latest
     outputs:
-      release_tag: ${{ steps.generate.outputs.release_tag }}
-      release_name: ${{ steps.generate.outputs.release_name }}
-      download_version: ${{ steps.generate.outputs.download_version }}
+      tag_name: ${{ steps.settag.outputs.tag_name }}
     steps:
-      - name: Generate release info and map versions
-        id: generate
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Tag Name
+        id: settag
         run: |
-          # 获取选定的版本
-          selected_version="${{ github.event.inputs.version }}"
-          # 版本映射
-          case "$selected_version" in
-            "10") download_version="10.9" ;;
-            "11") download_version="11.6" ;;
-            "12") download_version="12.8" ;;
-            "14") download_version="14.8" ;;
-            "16") download_version="16.2" ;;
-            *) echo "不支持的版本"; exit 1 ;;
-          esac
-          # 生成release标签和名称
-          release_tag="v${selected_version}.0.0"
-          release_name="PostgreSQL ${download_version} Binaries"
-          # 输出结果
-          echo "download_version=$download_version" >> $GITHUB_ENV
-          echo "release_tag=$release_tag" >> $GITHUB_ENV
-          echo "release_name=$release_name" >> $GITHUB_ENV
-          # 设置输出供后续作业使用
-          echo "download_version=$download_version" >> $GITHUB_OUTPUT
-          echo "release_tag=$release_tag" >> $GITHUB_OUTPUT
-          echo "release_name=$release_name" >> $GITHUB_OUTPUT
-      - name: Print release info
+          echo "tag_name=v${{ inputs.pg_version }}" >> $GITHUB_OUTPUT
+
+      - name: Create Git Tag
         run: |
-          echo "选择的版本: ${{ github.event.inputs.version }}"
-          echo "对应的下载版本: ${{ env.download_version }}"
-          echo "生成的Release标签: ${{ env.release_tag }}"
-          echo "生成的Release名称: ${{ env.release_name }}"
-  download-or-build:
-    runs-on: ${{ matrix.os }}
-    needs: generate-release-info
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag "v${{ inputs.pg_version }}"
+          git push origin "v${{ inputs.pg_version }}"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ inputs.pg_version }}
+          name: "PostgreSQL ${{ inputs.pg_version }}"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build:
+    name: Build ${{ matrix.platform }}
+    needs: tag-and-release
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        include:
-          - selected_version: '10'
-            download_version: '10.9'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-10.9-linux-x64-binaries.tar.gz"
-            download_ext: "tar.gz"
-            download_name: "postgresql-10.9-linux-amd64.tar.gz"
-            build: false
-          - selected_version: '10'
-            download_version: '10.9'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'arm64'
-            build: true
-            configure_args: '--prefix=/usr/local/pgsql --with-openssl --with-libxml --with-libxslt'
-            make_jobs: '4'
-          - selected_version: '10'
-            download_version: '10.9'
-            os: windows-latest
-            platform: 'windows'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-10.9-1-windows-x64-binaries.zip"
-            download_ext: "zip"
-            download_name: "postgresql-10.9-windows-amd64.zip"
-            build: false
-          - selected_version: '11'
-            download_version: '11.6'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-11.6-linux-x64-binaries.tar.gz"
-            download_ext: "tar.gz"
-            download_name: "postgresql-11.6-linux-amd64.tar.gz"
-            build: false
-          - selected_version: '11'
-            download_version: '11.6'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'arm64'
-            build: true
-            configure_args: '--prefix=/usr/local/pgsql --with-openssl --with-libxml --with-libxslt'
-            make_jobs: '4'
-          - selected_version: '11'
-            download_version: '11.6'
-            os: windows-latest
-            platform: 'windows'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-11.6-1-windows-x64-binaries.zip"
-            download_ext: "zip"
-            download_name: "postgresql-11.6-windows-amd64.zip"
-            build: false
-          - selected_version: '12'
-            download_version: '12.8'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-12.8-linux-x64-binaries.tar.gz"
-            download_ext: "tar.gz"
-            download_name: "postgresql-12.8-linux-amd64.tar.gz"
-            build: false
-          - selected_version: '12'
-            download_version: '12.8'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'arm64'
-            build: true
-            configure_args: '--prefix=/usr/local/pgsql --with-openssl --with-libxml --with-libxslt'
-            make_jobs: '4'
-          - selected_version: '12'
-            download_version: '12.8'
-            os: windows-latest
-            platform: 'windows'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-12.8-1-windows-x64-binaries.zip"
-            download_ext: "zip"
-            download_name: "postgresql-12.8-windows-amd64.zip"
-            build: false
-          - selected_version: '14'
-            download_version: '14.8'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-14.8-linux-x64-binaries.tar.gz"
-            download_ext: "tar.gz"
-            download_name: "postgresql-14.8-linux-amd64.tar.gz"
-            build: false
-          - selected_version: '14'
-            download_version: '14.8'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'arm64'
-            build: true
-            configure_args: '--prefix=/usr/local/pgsql --with-openssl --with-libxml --with-libxslt'
-            make_jobs: '4'
-          - selected_version: '14'
-            download_version: '14.8'
-            os: windows-latest
-            platform: 'windows'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-14.8-1-windows-x64-binaries.zip"
-            download_ext: "zip"
-            download_name: "postgresql-14.8-windows-amd64.zip"
-            build: false
-          - selected_version: '16'
-            download_version: '16.2'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-16.2-linux-x64-binaries.tar.gz"
-            download_ext: "tar.gz"
-            download_name: "postgresql-16.2-linux-amd64.tar.gz"
-            build: false
-          - selected_version: '16'
-            download_version: '16.2'
-            os: ubuntu-latest
-            platform: 'linux'
-            arch: 'arm64'
-            build: true
-            configure_args: '--prefix=/usr/local/pgsql --with-openssl --with-libxml --with-libxslt'
-            make_jobs: '4'
-          - selected_version: '16'
-            download_version: '16.2'
-            os: windows-latest
-            platform: 'windows'
-            arch: 'amd64'
-            download_url: "https://get.enterprisedb.com/postgresql/postgresql-16.2-1-windows-x64-binaries.zip"
-            download_ext: "zip"
-            download_name: "postgresql-16.2-windows-amd64.zip"
-            build: false
-      fail-fast: false
+        platform:
+          - linux/amd64
+          - linux/arm64
+          - windows/amd64
+
     steps:
-      - name: Filter by selected version
-        id: filter-version
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Parse platform info
+        id: parse
         run: |
-          # 检查当前matrix项是否与用户选择的版本匹配
-          if [ "${{ matrix.selected_version }}" != "${{ github.event.inputs.version }}" ]; then
-            echo "当前任务版本 ${{ matrix.selected_version }} 与用户选择的版本 ${{ github.event.inputs.version }} 不匹配，跳过"
-            echo "should_run=false" >> $GITHUB_ENV
-          else
-            echo "should_run=true" >> $GITHUB_ENV
+          IFS='/' read -r OS ARCH <<< "${{ matrix.platform }}"
+          EXT="tar.gz"
+          if [[ "$OS" == "windows" ]]; then
+            EXT="zip"
           fi
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Filter platforms based on input
-        if: env.should_run == 'true'
-        id: filter-platforms
+          FILENAME="postgresql-${{ inputs.pg_version }}-${OS}-${ARCH}.${EXT}"
+          echo "os=$OS" >> $GITHUB_OUTPUT
+          echo "arch=$ARCH" >> $GITHUB_OUTPUT
+          echo "ext=$EXT" >> $GITHUB_OUTPUT
+          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
+
+      - name: Download PostgreSQL binary
         run: |
-          # 获取输入的平台列表
-          input_platforms="${{ github.event.inputs.platforms }}"
-          IFS=',' read -r -a platform_array <<< "$input_platforms"
-          # 根据matrix配置和输入的平台，确定当前任务是否应该运行
-          platform_key="${{ matrix.platform }}/${{ matrix.arch }}"
-          should_run=false
-          for platform in "${platform_array[@]}"; do
-            if [ "$platform" == "$platform_key" ]; then
-              should_run=true
-              break
-            fi
-          done
-          echo "should_run=$should_run" >> $GITHUB_ENV
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Try to download binary (Linux)
-        if: env.should_run == 'true' && matrix.os == 'ubuntu-latest' && matrix.build == false
-        id: download-linux
-        continue-on-error: true
+          chmod +x ./scripts/download-postgresql.sh
+          ./scripts/download-postgresql.sh "${{ inputs.pg_version }}" "${{ steps.parse.outputs.os }}" "${{ steps.parse.outputs.arch }}"
+
+      - name: Package
         run: |
-          echo "尝试下载预编译二进制包: ${{ matrix.download_url }}"
-          wget -q -O "${{ matrix.download_name }}" "${{ matrix.download_url }}"
-          if [ $? -eq 0 ]; then
-            echo "下载成功"
-            echo "downloaded=true" >> $GITHUB_ENV
-            echo "package_file=${{ matrix.download_name }}" >> $GITHUB_ENV
+          mkdir -p output
+          cd postgresql
+          if [[ "${{ steps.parse.outputs.ext }}" == "zip" ]]; then
+            zip -r "../output/${{ steps.parse.outputs.filename }}" .
           else
-            echo "下载失败，将尝试编译"
-            echo "downloaded=false" >> $GITHUB_ENV
+            tar -czf "../output/${{ steps.parse.outputs.filename }}" .
           fi
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Try to download binary (Windows)
-        if: env.should_run == 'true' && matrix.os == 'windows-latest' && matrix.build == false
-        id: download-windows
-        continue-on-error: true
-        run: |
-          echo "尝试下载预编译二进制包: ${{ matrix.download_url }}"
-          curl -L -o "${{ matrix.download_name }}" "${{ matrix.download_url }}"
-          if [ $? -eq 0 ]; then
-            echo "下载成功"
-            echo "downloaded=true" >> $GITHUB_ENV
-            echo "package_file=${{ matrix.download_name }}" >> $GITHUB_ENV
-          else
-            echo "下载失败，将尝试编译"
-            echo "downloaded=false" >> $GITHUB_ENV
-          fi
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Set up Python
-        if: env.should_run == 'true' && (env.downloaded != 'true' || matrix.build == true)
-        uses: actions/setup-python@v4
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          python-version: '3.9'
-      - name: Install build dependencies (Linux)
-        if: env.should_run == 'true' && (env.downloaded != 'true' || matrix.build == true) && matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libreadline-dev zlib1g-dev libssl-dev libxml2-dev libxslt-dev wget
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get install -y qemu-user-static binfmt-support gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
-          fi
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Install build dependencies (Windows)
-        if: env.should_run == 'true' && (env.downloaded != 'true' || matrix.build == true) && matrix.os == 'windows-latest'
-        run: |
-          choco install -y strawberryperl
-          choco install -y mingw
-          choco install -y openssl
-          choco install -y libxml2
-          choco install -y libxslt
-          echo "C:\Program Files\OpenSSL-Win64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "C:\strawberry\c\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Download source code and build (Linux)
-        if: env.should_run == 'true' && (env.downloaded != 'true' || matrix.build == true) && matrix.os == 'ubuntu-latest'
-        run: |
-          mkdir -p src
-          cd src
-          wget -q https://ftp.postgresql.org/pub/source/v${{ matrix.download_version }}/postgresql-${{ matrix.download_version }}.tar.gz
-          tar xzf postgresql-${{ matrix.download_version }}.tar.gz
-          cd postgresql-${{ matrix.download_version }}
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            echo "Configuring for cross-build (${{ matrix.arch }})"
-            sudo update-binfmts --enable qemu-aarch64
-            ./configure ${{ matrix.configure_args }} --host=aarch64-linux-gnu
-          else
-            ./configure ${{ matrix.configure_args }}
-          fi
-          make -j ${{ matrix.make_jobs }}
-          make install
-          cd /usr/local
-          tar czf /home/runner/postgresql-${{ matrix.download_version }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz pgsql
-          echo "package_file=postgresql-${{ matrix.download_version }}-${{ matrix.platform }}-${{ matrix.arch }}.tar.gz" >> $GITHUB_ENV
-          shell: ${{ runner.os == 'Windows' && 'bash --noprofile --norc -eo pipefail {0}' || 'bash' }}
-      - name: Download source code and build (Windows)
-        if: env.should_run == 'true' && (env.downloaded != 'true' || matrix.build == true) && matrix.os == 'windows-latest'
-        run: |
-          mkdir -p src
-          cd src
-          wget -q https://ftp.postgresql.org/pub/source/v${{ matrix.download_version }}/postgresql-${{ matrix.download_version }}.tar.gz
-          tar xzf postgresql-${{ matrix.download_version }}.tar.gz
-          cd postgresql-${{ matrix.download_version }}
-          ./configure ${{ matrix.configure_args }} --host=x86_64-w64-mingw32
-          make -j ${{ matrix.make_jobs }}
-          make install
-          cd C:
-          7z a C:/post
+          tag_name: ${{ needs.tag-and-release.outputs.tag_name }}
+          files: output/${{ steps.parse.outputs.filename }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
