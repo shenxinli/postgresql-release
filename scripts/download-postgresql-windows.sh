@@ -18,11 +18,8 @@ esac
 FILENAME="postgresql-${VERSION}-windows-x64.zip"
 URL="https://get.enterprisedb.com/postgresql/postgresql-${FULL}-windows-x64-binaries.zip"
 
-# Create output directory if needed
-mkdir -p postgresql-windows-x64
-
 # Download
 echo "Downloading $FILENAME from $URL"
-curl -fSL "$URL" -o "postgresql-windows-x64/${FILENAME}"
+curl -fSL "$URL" -o "${FILENAME}"
 
-echo "Download completed: postgresql-windows-x64/${FILENAME}"
+echo "Download completed: ${FILENAME}"
