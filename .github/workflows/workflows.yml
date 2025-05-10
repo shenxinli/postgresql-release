@@ -58,7 +58,7 @@ jobs:
         run: |
           chmod +x ./scripts/download-postgresql-windows.sh
           ./scripts/download-postgresql-windows.sh "${{ inputs.version }}"
-          zip postgresql-${{ inputs.version }}-windows-amd64.zip postgresql-${{ inputs.version }}-windows-amd64.exe
+          zip postgresql-${{ inputs.version }}-windows-amd64.zip postgresql-${{ inputs.version }}-windows-amd64.zip
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
