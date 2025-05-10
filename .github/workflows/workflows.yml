@@ -1,111 +1,79 @@
-name: PostgreSQL Multi-Platform Release
+name: Build & Release PostgreSQL
 
 on:
   workflow_dispatch:
     inputs:
-      pg_version:
-        description: "PostgreSQL Version (10, 12, 14, 16)"
+      version:
+        description: 'PostgreSQL version (10, 12, 14, 16)'
         required: true
-        default: "14"
-        type: choice
-        options: ["10", "12", "14", "16"]
+        default: '14'
 
 jobs:
-  tag-and-release:
-    name: Create Git Tag and Release
+  build:
     runs-on: ubuntu-latest
-    outputs:
-      tag_name: ${{ steps.settag.outputs.tag_name }}
+    strategy:
+      matrix:
+        os_arch:
+          - { os: linux, arch: amd64 }
+          - { os: linux, arch: arm64 }
+          - { os: windows, arch: amd64 }
+    name: Build PostgreSQL ${{ matrix.os_arch.os }}/${{ matrix.os_arch.arch }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set Tag Name
-        id: settag
-        run: echo "tag_name=v${{ inputs.pg_version }}" >> $GITHUB_OUTPUT
+      - name: Setup dependencies (Linux only)
+        if: matrix.os_arch.os == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison
 
-      - name: Create Git Tag
+      - name: Download binary (x64 only)
+        if: matrix.os_arch.arch == 'amd64' && matrix.os_arch.os != 'linux' || matrix.os_arch.os == 'linux'
         run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git tag "v${{ inputs.pg_version }}"
-          git push origin "v${{ inputs.pg_version }}"
+          chmod +x ./scripts/download-postgresql.sh
+          ./scripts/download-postgresql.sh "${{ inputs.version }}" "${{ matrix.os_arch.os }}" "${{ matrix.os_arch.arch }}"
+
+      - name: Build from source (Linux ARM64)
+        if: matrix.os_arch.os == 'linux' && matrix.os_arch.arch == 'arm64'
+        run: |
+          curl -LO https://ftp.postgresql.org/pub/source/v${{ inputs.version }}/postgresql-${{ inputs.version }}.tar.gz
+          tar -xzf postgresql-${{ inputs.version }}.tar.gz
+          cd postgresql-${{ inputs.version }}
+          ./configure --prefix=$(pwd)/output
+          make -j$(nproc)
+          make install
+          cd output
+          tar -czf ../../postgresql-${{ inputs.version }}-linux-arm64.tar.gz *
+
+      - name: Archive artifact
+        run: |
+          if [ -f "postgresql-${{ inputs.version }}-${{ matrix.os_arch.os }}-${{ matrix.os_arch.arch }}.tar.gz" ]; then
+            echo "Found tar.gz"
+          elif [ -f postgresql/package.zip ]; then
+            mv postgresql/package.zip postgresql-${{ inputs.version }}-${{ matrix.os_arch.os }}-${{ matrix.os_arch.arch }}.zip
+          elif [ -d postgresql ]; then
+            tar -czf postgresql-${{ inputs.version }}-${{ matrix.os_arch.os }}-${{ matrix.os_arch.arch }}.tar.gz -C postgresql .
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: postgresql-${{ inputs.version }}-${{ matrix.os_arch.os }}-${{ matrix.os_arch.arch }}
+          path: postgresql-${{ inputs.version }}-${{ matrix.os_arch.os }}-${{ matrix.os_arch.arch }}.*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.pg_version }}
-          name: "PostgreSQL ${{ inputs.pg_version }}"
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  build:
-    name: Build for ${{ matrix.platform }}
-    needs: tag-and-release
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        platform:
-          - linux/amd64
-          - linux/arm64
-          - windows/amd64
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Parse platform info
-        id: parse
-        run: |
-          IFS='/' read -r OS ARCH <<< "${{ matrix.platform }}"
-          EXT="tar.gz"
-          if [[ "$OS" == "windows" ]]; then EXT="zip"; fi
-          FILENAME="postgresql-${{ inputs.pg_version }}-${OS}-${ARCH}.${EXT}"
-          echo "os=$OS" >> $GITHUB_OUTPUT
-          echo "arch=$ARCH" >> $GITHUB_OUTPUT
-          echo "ext=$EXT" >> $GITHUB_OUTPUT
-          echo "filename=$FILENAME" >> $GITHUB_OUTPUT
-
-      - name: Build from source (for ARM64)
-        if: matrix.platform == 'linux/arm64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison
-
-          mkdir -p build && cd build
-          curl -LO "https://ftp.postgresql.org/pub/source/v${{ inputs.pg_version }}/postgresql-${{ inputs.pg_version }}.tar.gz"
-          tar -xzf postgresql-${{ inputs.pg_version }}.tar.gz
-          cd postgresql-${{ inputs.pg_version }}
-          
-          ./configure --prefix=$PWD/install
-          make -j$(nproc)
-          make install
-          
-          mkdir -p ../../postgresql
-          cp -r install/* ../../postgresql
-
-      - name: Download PostgreSQL binary (except ARM64)
-        if: matrix.platform != 'linux/arm64'
-        run: |
-          chmod +x ./scripts/download-postgresql.sh
-          ./scripts/download-postgresql.sh "${{ inputs.pg_version }}" "${{ steps.parse.outputs.os }}" "${{ steps.parse.outputs.arch }}"
-
-      - name: Package
-        run: |
-          mkdir -p output
-          cd postgresql
-          if [[ "${{ steps.parse.outputs.ext }}" == "zip" ]]; then
-            zip -r "../output/${{ steps.parse.outputs.filename }}" .
-          else
-            tar -czf "../output/${{ steps.parse.outputs.filename }}" .
-          fi
-
-      - name: Upload to GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.tag-and-release.outputs.tag_name }}
-          files: output/${{ steps.parse.outputs.filename }}
+          tag_name: postgresql-v${{ inputs.version }}
+          name: PostgreSQL v${{ inputs.version }}
+          files: |
+            **/postgresql-${{ inputs.version }}-*.tar.gz
+            **/postgresql-${{ inputs.version }}-*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
