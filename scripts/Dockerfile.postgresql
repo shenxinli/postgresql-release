@@ -17,18 +17,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置完整版本映射（可根据需要扩展）
-# 示例: PG_VERSION=14 -> PG_FULL_VERSION=14.8
-RUN set -eux; \
-    case "$PG_VERSION" in \
-      11) PG_FULL_VERSION=11.6 ;; \
-      12) PG_FULL_VERSION=12.8 ;; \
-      14) PG_FULL_VERSION=14.8 ;; \
-      16) PG_FULL_VERSION=16.2 ;; \
-      *) echo "Unsupported version for source build: $PG_VERSION" && exit 1 ;; \
-    esac && \
-    wget -q https://ftp.postgresql.org/pub/source/v${PG_FULL_VERSION}/postgresql-${PG_FULL_VERSION}.tar.gz && \
-    tar -xf postgresql-${PG_FULL_VERSION}.tar.gz && \
-    mv postgresql-${PG_FULL_VERSION} postgresql
+RUN wget -q https://ftp.postgresql.org/pub/source/v${PG_VERSION}/postgresql-${PG_VERSION}.tar.gz && \
+    tar -xf postgresql-${PG_VERSION}.tar.gz && \
+    mv postgresql-${PG_VERSION} postgresql
 
 WORKDIR /build/postgresql
 
