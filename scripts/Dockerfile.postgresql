@@ -1,0 +1,40 @@
+# syntax=docker/dockerfile:1.4
+FROM --platform=$BUILDPLATFORM debian:bullseye-slim AS builder
+
+ARG PG_VERSION
+ARG TARGETARCH
+WORKDIR /build
+
+# 安装构建 PostgreSQL 所需的依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    wget \
+    ca-certificates \
+    libreadline-dev \
+    zlib1g-dev \
+    flex \
+    bison \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置完整版本映射（可根据需要扩展）
+# 示例: PG_VERSION=14 -> PG_FULL_VERSION=14.8
+RUN set -eux; \
+    case "$PG_VERSION" in \
+      11) PG_FULL_VERSION=11.6 ;; \
+      12) PG_FULL_VERSION=12.8 ;; \
+      14) PG_FULL_VERSION=14.8 ;; \
+      16) PG_FULL_VERSION=16.2 ;; \
+      *) echo "Unsupported version for source build: $PG_VERSION" && exit 1 ;; \
+    esac && \
+    wget -q https://ftp.postgresql.org/pub/source/v${PG_FULL_VERSION}/postgresql-${PG_FULL_VERSION}.tar.gz && \
+    tar -xf postgresql-${PG_FULL_VERSION}.tar.gz && \
+    mv postgresql-${PG_FULL_VERSION} postgresql
+
+WORKDIR /build/postgresql
+
+# 交叉构建支持
+RUN ./configure --prefix=/install && make -j$(nproc) && make install
+
+# 打包为 .tar.gz 格式
+FROM scratch AS export
+COPY --from=builder /install /install

@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - "10"
+          - "11"
           - "12"
           - "14"
           - "16"
@@ -38,18 +39,36 @@ jobs:
           git tag -f postgresql-v${{ inputs.version }}
           git push origin postgresql-v${{ inputs.version }} --force
 
-      - name: Download PostgreSQL Binary for Linux x86_64 (Version 10 only)
-        if: matrix.os_arch.os == 'linux' && matrix.os_arch.arch == 'amd64' && inputs.version == '10'
-        run: |
-          chmod +x ./scripts/download-postgresql-linux.sh
-          ./scripts/download-postgresql-linux.sh "${{ inputs.version }}" "amd64"
-          mv postgresql-linux-amd64/postgresql-*.tar.gz postgresql-${{ inputs.version }}-linux-amd64.tar.gz
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Build PostgreSQL from Source (Linux)
-        if: matrix.os_arch.os == 'linux' && (inputs.version != '10')
+      - name: Map version to full version
+        id: map-version
         run: |
-          chmod +x ./scripts/build-postgresql-linux.sh
-          ./scripts/build-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
+          case "${{ inputs.version }}" in
+            10) echo "full_version=10.9" >> $GITHUB_OUTPUT ;;
+            11) echo "full_version=11.6" >> $GITHUB_OUTPUT ;;
+            12) echo "full_version=12.8" >> $GITHUB_OUTPUT ;;
+            14) echo "full_version=14.8" >> $GITHUB_OUTPUT ;;
+            16) echo "full_version=16.2" >> $GITHUB_OUTPUT ;;
+            *) echo "Unknown version"; exit 1 ;;
+          esac
+
+      - name: Build PostgreSQL for Linux (amd64 / arm64)
+        if: startsWith(matrix.os_arch.os, 'linux') && inputs.version != '10'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./scripts/Dockerfile.postgresql
+          platforms: linux/${{ matrix.os_arch.arch }}
+          outputs: type=local,dest=./output-${{ matrix.os_arch.arch }}
+          build-args: |
+            PG_VERSION=${{ steps.map-version.outputs.full_version }}
+
+      - name: Rename Linux artifact
+        if: startsWith(matrix.os_arch.os, 'linux') && inputs.version != '10'
+        run: |
+          tar -czf postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz -C output-${{ matrix.os_arch.arch }} .
 
       - name: Download PostgreSQL (Windows)
         if: matrix.os_arch.os == 'windows'
@@ -57,6 +76,7 @@ jobs:
         run: |
           chmod +x ./scripts/download-postgresql-windows.sh
           ./scripts/download-postgresql-windows.sh "${{ inputs.version }}"
+          mv postgresql-windows-x64/postgresql-*-windows-x64-binaries.zip postgresql-${{ inputs.version }}-windows-amd64.zip || true
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
@@ -66,6 +86,6 @@ jobs:
           files: |
             postgresql-${{ inputs.version }}-linux-amd64.tar.gz
             postgresql-${{ inputs.version }}-linux-arm64.tar.gz
-            postgresql-${{ inputs.version }}-windows-x64.zip
+            postgresql-${{ inputs.version }}-windows-amd64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
