@@ -18,7 +18,7 @@ esac
 wget https://ftp.postgresql.org/pub/source/v${FULL}/postgresql-${FULL}.tar.gz
 
 # 解压源代码
-tar -xzf postgresql-${FULL}.tar.gz -o postgresql-${VERSION}
+tar -xzf postgresql-${FULL}.tar.gz -C postgresql-${VERSION}
 cd postgresql-${VERSION}
 
 # 根据架构选择交叉编译工具链和编译选项
