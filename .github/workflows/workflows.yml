@@ -74,7 +74,7 @@ jobs:
         if: startsWith(matrix.os_arch.os, 'linux') && inputs.version== '10'
         shell: bash
         run: |
-          chmod +x./scripts/download-postgresql-linux.sh
+          chmod +x ./scripts/download-postgresql-linux.sh
           ./scripts/download-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
 
       - name: Download PostgreSQL (Windows)
