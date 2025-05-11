@@ -6,9 +6,10 @@ VERSION="$1"  # e.g., 10, 12, 14, 16
 # Map short version to full EDB installer version
 case "$VERSION" in
   10) FULL="10.23-1" ;;
+  11) FULL="11.6-1"  ;;
   12) FULL="12.22-1" ;;
   14) FULL="14.18-1" ;;
-  16) FULL="16.9-1" ;;
+  16) FULL="16.9-1"  ;;
   *)
     echo "Unsupported PostgreSQL version: $VERSION"
     exit 1

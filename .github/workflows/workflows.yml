@@ -70,6 +70,13 @@ jobs:
         run: |
           tar -czf postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz -C output-${{ matrix.os_arch.arch }} .
 
+      - name: Download PostgreSQL (Linux)
+        if: startsWith(matrix.os_arch.os, 'linux') && inputs.version== '10'
+        shell: bash
+        run: |
+          chmod +x./scripts/download-postgresql-linux.sh
+          ./scripts/download-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
+
       - name: Download PostgreSQL (Windows)
         if: matrix.os_arch.os == 'windows'
         shell: bash
