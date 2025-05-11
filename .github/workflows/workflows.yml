@@ -76,7 +76,7 @@ jobs:
         run: |
           chmod +x ./scripts/download-postgresql-windows.sh
           ./scripts/download-postgresql-windows.sh "${{ inputs.version }}"
-          mv postgresql-windows-x64/postgresql-*-windows-x64-binaries.zip postgresql-${{ inputs.version }}-windows-amd64.zip || true
+          mv postgresql-*-windows-x64-binaries.zip postgresql-${{ inputs.version }}-windows-x64.zip || true
 
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
@@ -86,6 +86,6 @@ jobs:
           files: |
             postgresql-${{ inputs.version }}-linux-amd64.tar.gz
             postgresql-${{ inputs.version }}-linux-arm64.tar.gz
-            postgresql-${{ inputs.version }}-windows-amd64.zip
+            postgresql-${{ inputs.version }}-windows-x86.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
