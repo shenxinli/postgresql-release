@@ -4,10 +4,10 @@ VERSION=$1
 ARCH=$2
 
 case "$VERSION" in
-  10) FULL="10.23-1" ;;
-  12) FULL="12.22-1" ;;
-  14) FULL="14.18-1" ;;
-  16) FULL="16.9-1" ;;
+  10) FULL="10.23" ;;
+  12) FULL="12.22" ;;
+  14) FULL="14.18" ;;
+  16) FULL="16.9" ;;
   *)
     echo "Unsupported PostgreSQL version: $VERSION"
     exit 1
