@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     flex \
     bison \
+    libicu-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置完整版本映射（可根据需要扩展）
