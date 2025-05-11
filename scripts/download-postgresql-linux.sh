@@ -33,21 +33,24 @@ elif [[ "$ARCH" == "arm64" ]]; then
 
   # Install dependencies
   sudo apt-get update
-  sudo apt-get install -y build-essential libreadline-dev zlib1g-dev flex bison wget tar
+  sudo apt-get install -y build-essential gcc-aarch64-linux-gnu libreadline-dev zlib1g-dev flex bison wget tar
 
   # Download source
-  wget https://ftp.postgresql.org/pub/source/v${VERSION}/postgresql-${VERSION}.tar.gz
-  tar -xzf postgresql-${VERSION}.tar.gz
-  cd postgresql-${VERSION}
+  wget https://ftp.postgresql.org/pub/source/v${FULL}/postgresql-${FULL}.tar.gz
+  tar -xzf postgresql-${FULL}.tar.gz
+  mv postgresql-${FULL} postgresql-${VERSION} && cd postgresql-${VERSION}
 
-  ./configure --prefix=$PWD/install
+  OUTPUT_DIR=$(pwd)/output
+  mkdir -p "$OUTPUT_DIR"
+  CC=aarch64-linux-gnu-gcc ./configure --prefix=${OUTPUT_DIR} --enable-debug --with-openssl --without-readline --without-zlib
   make -j$(nproc)
   make install
 
-  cd install
-  tar -czf ../../postgresql-${VERSION}-linux-arm64.tar.gz *
-  echo "Build and packaging complete: postgresql-${VERSION}-linux-arm64.tar.gz"
-
+  # Package the result
+  ls -l ${OUTPUT_DIR}
+  echo "compress build: postgresql-${VERSION}-linux-${ARCH}.tar.gz in ${OUTPUT_DIR}"
+  tar -czf postgresql-${VERSION}-linux-${ARCH}.tar.gz ${OUTPUT_DIR}
+  echo "Build and packaging complete: postgresql-${VERSION}-linux-${ARCH}.tar.gz"
 else
   echo "Unsupported architecture: $ARCH"
   exit 1
