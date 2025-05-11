@@ -50,7 +50,6 @@ jobs:
         run: |
           chmod +x ./scripts/build-postgresql-linux.sh
           ./scripts/build-postgresql-linux.sh "${{ inputs.version }}" "${{ matrix.os_arch.arch }}"
-          mv postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz postgresql-${{ inputs.version }}-linux-${{ matrix.os_arch.arch }}.tar.gz
 
       - name: Download PostgreSQL (Windows)
         if: matrix.os_arch.os == 'windows'

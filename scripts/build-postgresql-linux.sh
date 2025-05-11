@@ -3,11 +3,22 @@
 VERSION=$1
 ARCH=$2
 
+case "$VERSION" in
+  10) FULL="10.23-1" ;;
+  12) FULL="12.22-1" ;;
+  14) FULL="14.18-1" ;;
+  16) FULL="16.9-1" ;;
+  *)
+    echo "Unsupported PostgreSQL version: $VERSION"
+    exit 1
+    ;;
+esac
+
 # 下载 PostgreSQL 源代码
-wget https://ftp.postgresql.org/pub/source/v${VERSION}/postgresql-${VERSION}.tar.gz
+wget https://ftp.postgresql.org/pub/source/v${FULL}/postgresql-${FULL}.tar.gz
 
 # 解压源代码
-tar -xzf postgresql-${VERSION}.tar.gz
+tar -xzf postgresql-${FULL}.tar.gz -o postgresql-${VERSION}
 cd postgresql-${VERSION}
 
 # 根据架构选择交叉编译工具链和编译选项
