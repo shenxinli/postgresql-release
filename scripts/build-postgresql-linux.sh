@@ -23,11 +23,11 @@ mv postgresql-${FULL} postgresql-${VERSION} && cd postgresql-${VERSION}
 
 # 根据架构选择交叉编译工具链和编译选项
 if [[ "$ARCH" == "amd64" ]]; then
-  ./configure --prefix=/usr/local --enable-debug --with-openssl
+  ./configure --prefix=/usr/local --enable-debug --with-openssl --without-readline --without-zlib
 elif [[ "$ARCH" == "arm64" ]]; then
   # 安装必要的交叉编译工具
   sudo apt-get install -y gcc-aarch64-linux-gnu
-  CC=aarch64-linux-gnu-gcc ./configure --prefix=/usr/local --enable-debug --with-openssl
+  CC=aarch64-linux-gnu-gcc ./configure --prefix=/usr/local --enable-debug --with-openssl --without-readline --without-zlib
 fi
 
 # 编译和安装 PostgreSQL
