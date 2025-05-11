@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     flex \
     bison \
     libicu-dev \
+    pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置完整版本映射（可根据需要扩展）
