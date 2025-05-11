@@ -41,4 +41,7 @@ make -j$(nproc)
 make install
 
 # 打包结果
+ls -l ${OUTPUT_DIR}
+echo "compress build: postgresql-${VERSION}-linux-${ARCH}.tar.gz in ${OUTPUT_DIR}"
 tar -czf postgresql-${VERSION}-linux-${ARCH}.tar.gz ${OUTPUT_DIR}
+echo "build completed: postgresql-${VERSION}-linux-${ARCH}.tar.gz"
