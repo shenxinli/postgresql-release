@@ -36,8 +36,8 @@ jobs:
       - name: Generate tag and create release
         if: matrix.os_arch.os == 'linux' && matrix.os_arch.arch == 'amd64'
         run: |
-          git tag -f postgresql-v${{ inputs.version }}
-          git push origin postgresql-v${{ inputs.version }} --force
+          git tag -f v${{ inputs.version }}
+          git push origin v${{ inputs.version }} --force
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
