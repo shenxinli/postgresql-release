@@ -80,7 +80,7 @@ jobs:
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: postgresql-v${{ inputs.version }}
+          tag_name: v${{ inputs.version }}
           name: PostgreSQL ${{ inputs.version }} binaries
           files: |
             postgresql-${{ inputs.version }}-linux-amd64.tar.gz
